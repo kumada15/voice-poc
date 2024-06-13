@@ -34,8 +34,8 @@ function App() {
   const [pageNumber, setPageNumber] = useState(1);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [userMessage, setUserMessage] = useState("");
-
-  const [currentPage, setCurrentPage] = useState(pageNumber);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isExplanationComplete, setIsExplanationComplete] = useState(false);
 
   useEffect(() => {
     setCurrentPage(pageNumber);
@@ -96,14 +96,14 @@ function App() {
 
   useEffect(() => {
     const fetchGPT = async () => {
-      if (userMessage) {
+      if (userMessage || (!isExplanationComplete && currentPage <= (numPages || Infinity))) {
         const systemPrompt = `
         先ず与えられた変数${currentPage}の値を使ってユーザーにページ番号を正しく認識してください。
         currentPage の値は、このシステムプロンプトの中で提供されます。          
 
         あなたはAWSのソリューションプロバイダーであるRelicの営業担当です。Relicは以下のようなAWSに関連するソリューションを提供しています。
         これからスライド資料を使って商談を行います。スライドは全部で18ページあります。
-        スライドの内容を順番に説明してください。説明が終わったら次のページに進み、最後のページまで続けてください。
+        スライドの内容を順番に説明してください。説明が終わったら「次のページを表示します。」と言ってから次のページに進み、最後のページまで続けてください。
         説明するページの番号は必ず最初に言及してください。例えば、「2ページ目の内容は以下の通りです。」のように言及してください。
         マークダウンなどを使わず、必ず文章で出力してください。
   
@@ -243,7 +243,7 @@ function App() {
           messages: [
             { role: "system", content: systemPrompt },
             ...history,
-            { role: "user", content: userMessage },
+            { role: "user", content: userMessage || `【ページ${currentPage}】` },
           ],
           model: "gpt-4",
         });
@@ -268,13 +268,20 @@ function App() {
         const choice = data.choices[0].message.content;
         setHistory([...history, { role: "assistant", content: choice }]);
 
-        const pageNumberRegex = /現在のページ番号は(\d+)です/;
+        const pageNumberRegex = /(\d+)ページ目の内容は以下の通りです。/;
         const match = choice.match(pageNumberRegex);
         if (match) {
           const newPageNumber = parseInt(match[1], 10);
           if (newPageNumber !== pageNumber) {
             setPageNumber(newPageNumber);
           }
+        }
+
+        if (choice.includes("次のページを表示します。")) {
+          setCurrentPage((prevPageNumber) => prevPageNumber + 1);
+          setIsExplanationComplete(false);
+        } else {
+          setIsExplanationComplete(true);
         }
 
         setTimeout(() => {
@@ -284,7 +291,8 @@ function App() {
     };
 
     fetchGPT();
-  }, [userMessage, currentPage]);
+  // }, [userMessage, currentPage]);
+}, [userMessage, currentPage, isExplanationComplete]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
