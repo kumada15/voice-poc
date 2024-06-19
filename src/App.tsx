@@ -265,17 +265,20 @@ function App() {
     };
   }, [pageNumber, isStarted]);
 
-  const goToNextPage = () => {
+  const goToNextPage = async () => {
     if (isNavigating || pageNumber >= (numPages || 0)) return;
     setIsNavigating(true);
+  
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       setIsPlaying(false);
     }
+  
     const nextPageNumber = pageNumber + 1;
     setPageNumber(nextPageNumber);
-    fetchGPTForNextPage(nextPageNumber);
+    setIsNavigating(false);
+    await fetchGPTForNextPage(nextPageNumber);
   };
 
   const goToPrevPage = () => {
@@ -300,9 +303,9 @@ function App() {
       ],
       model: "gpt-4o",
     });
-
+  
     controllerRef.current = new AbortController();
-
+  
     try {
       const response = await fetch(
         `https://api.openai.com/v1/chat/completions`,
@@ -316,12 +319,15 @@ function App() {
           signal: controllerRef.current.signal,
         }
       );
-
+  
       if (!response.ok) throw new Error("Fetch error");
       const data = await response.json();
       const choice = data.choices[0].message.content;
-      setHistory([...history, { role: "assistant", content: choice }]);
-
+      setHistory((prevHistory) => [
+        ...prevHistory,
+        { role: "assistant", content: choice },
+      ]);
+  
       playVoice(choice, false, () => setIsNavigating(false));
     } catch (error) {
       if (error instanceof Error && error.name !== "AbortError") {
@@ -335,6 +341,7 @@ function App() {
     const response = await openai.audio.speech.create({
       model: "tts-1",
       voice: "echo",
+      speed: 1, // デフォルト1
       input: isQuestion ? `${message} 他に質問がありますか？` : message,
     });
     const audioBlob = await response.blob();
@@ -348,12 +355,12 @@ function App() {
       if (isQuestion) {
         setAwaitingConfirmation(true);
       } else if (!awaitingConfirmation && pageNumber < (numPages || 0)) {
+        setAwaitingConfirmation(false);
         goToNextPage(); // 自動的に次のページに移動
       }
       if (onEndCallback) onEndCallback();
     };
   };
-
   const handleStop = () => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -432,12 +439,12 @@ function App() {
           >
             {isPresentationStarted ? '商談中...' : '商談開始'}
           </button>
-          {/* <button onClick={goToPrevPage} disabled={pageNumber === 1} className="px-4 py-4 bg-blue-500 text-white rounded disabled:opacity-50 mt-4">
+          <button onClick={goToPrevPage} disabled={pageNumber === 1} className="px-4 py-4 bg-blue-500 text-white rounded disabled:opacity-50 mt-4">
             前のページ
           </button>
           <button onClick={goToNextPage} disabled={pageNumber === numPages} className="px-4 py-4 bg-blue-500 text-white rounded disabled:opacity-50 mt-4">
             次のページ
-          </button> */}
+          </button>
           <button onClick={handleListenAndToggleQuestionMode} className={`${buttonClasses} py-4`}>
             <i>{iconClass}</i>
           </button>
