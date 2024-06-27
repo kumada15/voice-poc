@@ -417,7 +417,7 @@ function App() {
           </p>
         </div>
 
-        <div className="w-full max-w-[400px] sm:max-w-[100px] md:max-w-[100px] lg:max-w-[750px] px-4">
+        {/* <div className="w-full max-w-[400px] sm:max-w-[100px] md:max-w-[100px] lg:max-w-[750px] px-4">
           <div className="bg-white p-4 rounded shadow">
             <h2 className="text-lg font-bold mb-2">Voice_to_Text</h2>
             <p className="text-gray-700">
@@ -428,7 +428,7 @@ function App() {
                 : ""}
             </p>
           </div>
-        </div>
+        </div> */}
 
         <div className="flex space-x-2 mb-2">
           <button onClick={startPresentation}
